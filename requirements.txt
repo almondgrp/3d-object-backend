@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+rembg
+torch
+torchvision
+trimesh
+Pillow
+tsr
