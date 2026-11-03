@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-rembg
+rembg[cpu]
 torch
 torchvision
 trimesh
