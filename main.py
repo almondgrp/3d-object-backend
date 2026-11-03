@@ -70,8 +70,10 @@ async def generate_3d(file: UploadFile = File(...)):
         "glb_url": f"/outputs/{session_id}.glb"
     }
 
-if __name__ == "__main__":
-    import uvicorn
-    import os
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+@app.get("/")
+def home():
+    return {"status": "Backend is running!"}
+
+@app.post("/api/generate-3d")
+async def generate_3d(file: UploadFile = File(...)):
+    # ... logic xử lý giữ nguyên ...
