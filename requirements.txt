@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+onnxruntime
 rembg[cpu]
 torch
 torchvision
