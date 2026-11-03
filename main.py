@@ -69,11 +69,3 @@ async def generate_3d(file: UploadFile = File(...)):
         "status": "success",
         "glb_url": f"/outputs/{session_id}.glb"
     }
-
-@app.get("/")
-def home():
-    return {"status": "Backend is running!"}
-
-@app.post("/api/generate-3d")
-async def generate_3d(file: UploadFile = File(...)):
-    # ... logic xử lý giữ nguyên ...
