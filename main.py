@@ -8,10 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from rembg import remove
 
-# Khởi tạo ứng dụng FastAPI
 app = FastAPI()
 
-# Bật CORS để cho phép Frontend kết nối
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,27 +18,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Tạo các thư mục lưu tạm dữ liệu
 UPLOAD_DIR = "uploads"
 OUTPUT_DIR = "outputs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Cho phép truy cập file 3D tĩnh qua URL
 app.mount("/outputs", StaticFiles(directory=OUTPUT_DIR), name="outputs")
 
-# Khởi tạo AI Model TripoSR (Tự động tải weights nếu chưa có)
+model = None
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
-print(f"Đang chạy mô hình AI trên thiết bị: {device}")
 
-try:
-    from tsr.system import TSR
-    model = TSR.from_pretrained("stabilityai/TripoSR", config_name="config.json", weight_name="model.ckpt")
-    model.renderer.set_chunk_size(8192)
-    model.to(device)
-except Exception as e:
-    print(f"Cảnh báo: Chưa thể load TripoSR ({e}). Vui lòng kiểm tra kết nối internet.")
-    model = None
+def get_model():
+    global model
+    if model is None:
+        print(f"Đang tải mô hình AI TripoSR vào thiết bị: {device}...")
+        from tsr.system import TSR
+        model = TSR.from_pretrained("stabilityai/TripoSR", config_name="config.json", weight_name="model.ckpt")
+        model.renderer.set_chunk_size(4096)
+        model.to(device)
+    return model
+
+@app.get("/")
+def home():
+    return {"status": "Backend is running!"}
 
 @app.post("/api/generate-3d")
 async def generate_3d(file: UploadFile = File(...)):
@@ -52,23 +52,18 @@ async def generate_3d(file: UploadFile = File(...)):
     rembg_path = os.path.join(UPLOAD_DIR, f"nobg_{session_id}.png")
     output_glb_path = os.path.join(OUTPUT_DIR, f"{session_id}.glb")
 
-    # 1. Lưu file ảnh tải lên
     with open(input_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # 2. Xóa nền ảnh (Background Removal)
     input_img = Image.open(input_path)
     nobg_img = remove(input_img)
     nobg_img.save(rembg_path)
 
-    # 3. Chuyển ảnh thành 3D bằng TripoSR
-    if model is not None:
-        with torch.no_grad():
-            scene_codes = model([nobg_img], device=device)
-            meshes = model.extract_mesh(scene_codes, resolution=256)
-            meshes[0].export(output_glb_path)
-    else:
-        raise HTTPException(status_code=500, detail="Model TripoSR chưa sẵn sàng.")
+    ai_model = get_model()
+    with torch.no_grad():
+        scene_codes = ai_model([nobg_img], device=device)
+        meshes = ai_model.extract_mesh(scene_codes, resolution=128)
+        meshes[0].export(output_glb_path)
 
     return {
         "status": "success",
