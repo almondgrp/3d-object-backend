@@ -7,3 +7,4 @@ torchvision
 trimesh
 Pillow
 tsr
+python-multipart
